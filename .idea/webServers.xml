@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="009c287d-4ade-4fd8-be24-05edc15fd69e" name="yandex_2025" url="http://84.252.133.167">
+        <fileTransfer rootFolder="/home/tolkkk" accessType="SFTP" host="84.252.133.167" port="22" sshConfigId="7b49c3c3-5860-4f00-b2ad-83268fed4c3e" sshConfig="tolkkk@84.252.133.167:22 agent" authAgent="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
