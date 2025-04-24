@@ -6,6 +6,8 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import implicit
 import mlflow
+
+
 EVAL_DAYS_TRESHOLD = 14
 DATA_DIR = 'data/'
 
