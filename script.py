@@ -7,7 +7,6 @@ import numpy as np
 import implicit
 import mlflow
 
-
 EVAL_DAYS_TRESHOLD = 14
 DATA_DIR = 'data/'
 
@@ -18,24 +17,25 @@ def get_data():
     df_event = pl.read_parquet(f'{DATA_DIR}/events.pq')
     return df_test_users, df_clickstream, df_event
 
+
 def split_train_test(df_clickstream: pl.DataFrame, df_event: pl.DataFrame):
     treshhold = df_clickstream['event_date'].max() - timedelta(days=EVAL_DAYS_TRESHOLD)
 
-    df_train = df_clickstream.filter(df_clickstream['event_date']<= treshhold)
-    df_eval = df_clickstream.filter(df_clickstream['event_date']> treshhold)[['cookie', 'node', 'event']]
+    df_train = df_clickstream.filter(df_clickstream['event_date'] <= treshhold)
+    df_eval = df_clickstream.filter(df_clickstream['event_date'] > treshhold)[['cookie', 'node', 'event']]
 
     df_eval = df_eval.join(df_train, on=['cookie', 'node'], how='anti')
 
     df_eval = df_eval.filter(
         pl.col('event').is_in(
-            df_event.filter(pl.col('is_contact')==1)['event'].unique()
+            df_event.filter(pl.col('is_contact') == 1)['event'].unique()
         )
     )
     df_eval = df_eval.filter(
-            pl.col('cookie').is_in(df_train['cookie'].unique())
-        ).filter(
-            pl.col('node').is_in(df_train['node'].unique())
-        )
+        pl.col('cookie').is_in(df_train['cookie'].unique())
+    ).filter(
+        pl.col('node').is_in(df_train['node'].unique())
+    )
 
     df_eval = df_eval.unique(['cookie', 'node'])
 
@@ -58,7 +58,7 @@ def get_als_pred(users, nodes, user_to_pred):
     sparse_matrix = csr_matrix((values, (rows, cols)), shape=(len(user_ids), len(item_ids)))
 
     model = implicit.als.AlternatingLeastSquares(
-        iterations=10,
+        iterations=1,
         factors=60,
         use_gpu=False,
     )
@@ -66,14 +66,19 @@ def get_als_pred(users, nodes, user_to_pred):
 
     user4pred = np.array([user_id_to_index[i] for i in user_to_pred])
 
-    recommendations, scores = model.recommend(user4pred, sparse_matrix[user4pred], N=40, filter_already_liked_items=True)
+    recommendations, scores = model.recommend(
+        user4pred,
+        sparse_matrix[user4pred],
+        N=40,
+        filter_already_liked_items=True,
+    )
 
     df_pred = pl.DataFrame(
         {
             'node': [
                 [index_to_item_id[i] for i in i] for i in recommendations.tolist()
             ],
-             'cookie': list(user_to_pred),
+            'cookie': list(user_to_pred),
             'scores': scores.tolist()
 
         }
@@ -91,26 +96,35 @@ def train(df_train: pl.DataFrame, df_eval: pl.DataFrame):
 
 
 def recall_at(df_true, df_pred, k=40):
-    return  df_true[['node', 'cookie']].join(
+    return df_true[['node', 'cookie']].join(
         df_pred.group_by('cookie').head(k).with_columns(value=1)[['node', 'cookie', 'value']],
         how='left',
-        on = ['cookie', 'node']
+        on=['cookie', 'node']
     ).select(
         [pl.col('value').fill_null(0), 'cookie']
     ).group_by(
         'cookie'
     ).agg(
         [
-            pl.col('value').sum()/pl.col(
+            pl.col('value').sum() / pl.col(
                 'value'
             ).count()
         ]
     )['value'].mean()
 
 
+EXPERIMENT_NAME = "homework-admastryukov"
+
+
 def main():
-    mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI'))
-    mlflow.set_experiment("RECSYS_competition_2025")
+    mlflow.set_tracking_uri(
+        os.environ.get('MLFLOW_TRACKING_URI')
+    )
+
+    if not mlflow.get_experiment_by_name(EXPERIMENT_NAME):
+        mlflow.create_experiment(EXPERIMENT_NAME, artifact_location='mlflow-artifacts:/')
+
+    mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run():
         df_test_users, df_clickstream, df_event = get_data()
