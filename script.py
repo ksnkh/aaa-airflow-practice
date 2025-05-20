@@ -1,6 +1,7 @@
 import os
 import random
 from datetime import timedelta
+import argparse
 
 import implicit
 import mlflow
@@ -208,14 +209,7 @@ def main():
         os.environ.get('MLFLOW_TRACKING_URI')
     )
 
-    EXPERIMENT_NAME = os.environ.get('EXPERIMENT_NAME')
-
-    if not mlflow.get_experiment_by_name(EXPERIMENT_NAME):
-        mlflow.create_experiment(EXPERIMENT_NAME, artifact_location='mlflow-artifacts:/')
-
-    mlflow.set_experiment(EXPERIMENT_NAME)
-
-    run_params = {
+    default_params = {
         'run_name': 'airflow',
         'als_data_prep': 'binary_wtime',
         'data_frac': 1,
@@ -227,9 +221,21 @@ def main():
         'als_conf_coef': 5.341222514349242,
         'als_decay_rate': 0.029361182371878736}
 
-    for param in run_params.keys():
-        if param in os.environ:
-            run_params[param] = type(run_params[param])(os.getenv(param))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--experiment_name')
+    for param in default_params.keys():
+        parser.add_argument(f'--{param}',
+                            type=type(default_params[param]),
+                            default=default_params[param])
+
+    run_params = vars(parser.parse_args())
+
+    EXPERIMENT_NAME = run_params.get('experiment_name')
+
+    if not mlflow.get_experiment_by_name(EXPERIMENT_NAME):
+        mlflow.create_experiment(EXPERIMENT_NAME, artifact_location='mlflow-artifacts:/')
+
+    mlflow.set_experiment(EXPERIMENT_NAME)
 
     df_test_users, df_clickstream, df_event = get_data()
     df_train, df_eval = split_train_test(df_clickstream, df_event)
