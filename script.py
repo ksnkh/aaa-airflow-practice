@@ -6,7 +6,12 @@ import implicit
 import mlflow
 import numpy as np
 import polars as pl
+import threadpoolctl
 from scipy.sparse import csr_matrix
+
+threadpoolctl.threadpool_limits(1, "blas")
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 EVAL_DAYS_TRESHOLD = 14
 DATA_DIR = 'data/'
@@ -198,13 +203,12 @@ def recall_at(df_true, df_pred, k=40):
     )['value'].mean()
 
 
-EXPERIMENT_NAME = "homework-kdnakhamkin(no s3)"
-
-
 def main():
     mlflow.set_tracking_uri(
         os.environ.get('MLFLOW_TRACKING_URI')
     )
+
+    EXPERIMENT_NAME = os.environ.get('EXPERIMENT_NAME')
 
     if not mlflow.get_experiment_by_name(EXPERIMENT_NAME):
         mlflow.create_experiment(EXPERIMENT_NAME, artifact_location='mlflow-artifacts:/')
@@ -225,12 +229,12 @@ def main():
 
     for param in run_params.keys():
         if param in os.environ:
-            run_params[param] = os.getenv(param)
-            print(param)
+            run_params[param] = type(run_params[param])(os.getenv(param))
 
     df_test_users, df_clickstream, df_event = get_data()
+    df_train, df_eval = split_train_test(df_clickstream, df_event)
 
-    run_experiment(df_clickstream, df_test_users, df_event, run_params)
+    run_experiment(df_train, df_eval, df_event, run_params)
 
 
 if __name__ == '__main__':
