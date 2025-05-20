@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_NAME=nik_name/docker_tag
+IMAGE_NAME=kosnah/aaa-airflow
 
 docker build -t $IMAGE_NAME .
 docker push $IMAGE_NAME
